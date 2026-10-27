@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name }} - Student MS{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Student Details</h1>
+
+<div class="profile-card">
+    <div class="profile-avatar">{{ student.name[0] }}</div>
+    <h2>{{ student.name }}</h2>
+    <p class="profile-roll">Roll No: {{ student.roll_no }}</p>
+
+    <div class="profile-grid">
+        <div class="profile-field"><strong>Branch:</strong> {{ student.branch }}</div>
+        <div class="profile-field"><strong>Semester:</strong> {{ student.semester }}</div>
+        <div class="profile-field"><strong>Email:</strong> {{ student.email or "—" }}</div>
+        <div class="profile-field"><strong>Phone:</strong> {{ student.phone or "—" }}</div>
+        <div class="profile-field"><strong>Marks:</strong> {{ student.marks }}%</div>
+    </div>
+
+    <div class="form-actions">
+        <a href="{{ url_for('edit_student', student_id=student.id) }}" class="btn btn-edit">Edit</a>
+        <a href="{{ url_for('index') }}" class="btn btn-cancel">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

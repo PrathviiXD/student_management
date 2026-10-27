@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Student MS{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Student Dashboard</h1>
+
+<div class="stats-row" id="statsRow">
+    <div class="stat-card">
+        <span class="stat-number" id="totalStudents">{{ students|length }}</span>
+        <span class="stat-label">Total Students</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number" id="avgMarks">-</span>
+        <span class="stat-label">Average Marks</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number" id="totalBranches">-</span>
+        <span class="stat-label">Branches</span>
+    </div>
+</div>
+
+<div class="toolbar">
+    <input type="text" id="searchBox" placeholder="🔍 Search by name, roll no, or branch..." />
+    <a href="{{ url_for('add_student') }}" class="btn btn-primary">+ Add New Student</a>
+</div>
+
+<div class="table-wrapper">
+    <table class="student-table" id="studentTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Roll No</th>
+                <th>Branch</th>
+                <th>Semester</th>
+                <th>Marks</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="studentTableBody">
+            {% for s in students %}
+            <tr>
+                <td>{{ s.id }}</td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.roll_no }}</td>
+                <td>{{ s.branch }}</td>
+                <td>{{ s.semester }}</td>
+                <td>
+                    <span class="badge {% if s.marks >= 85 %}badge-green{% elif s.marks >= 70 %}badge-yellow{% else %}badge-red{% endif %}">
+                        {{ s.marks }}
+                    </span>
+                </td>
+                <td class="actions">
+                    <a href="{{ url_for('view_student', student_id=s.id) }}" class="btn btn-sm btn-view">View</a>
+                    <a href="{{ url_for('edit_student', student_id=s.id) }}" class="btn btn-sm btn-edit">Edit</a>
+                    <a href="{{ url_for('delete_student', student_id=s.id) }}" class="btn btn-sm btn-delete"
+                       onclick="return confirm('Delete {{ s.name }}?');">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p id="noResults" class="no-results" style="display:none;">No matching students found.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", loadStats);
+</script>
+{% endblock %}

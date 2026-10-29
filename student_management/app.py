@@ -3,13 +3,22 @@ Student Management System
 Tech stack: Python (Flask) + SQL (SQLite) + HTML + CSS + JavaScript
 """
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-import sqlite3
 import os
+import re
+import sqlite3
+
+from flask import Flask, abort, jsonify, redirect, render_template, request, url_for
 
 app = Flask(__name__)
 
 DB_NAME = os.path.join(os.path.dirname(__file__), "students.db")
+VALID_BRANCHES = [
+    "Computer Science",
+    "Electronics",
+    "Mechanical",
+    "Civil",
+    "Electrical",
+]
 
 
 # ---------------------------------------------------------
@@ -25,7 +34,8 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS students (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -34,11 +44,11 @@ def init_db():
             semester INTEGER NOT NULL,
             email TEXT,
             phone TEXT,
-            marks REAL
+            marks REAL NOT NULL
         )
-    """)
+    """
+    )
 
-    # Insert sample data only if table is empty
     cursor.execute("SELECT COUNT(*) FROM students")
     count = cursor.fetchone()[0]
 
@@ -55,13 +65,88 @@ def init_db():
             ("Aditya Joshi", "CS104", "Computer Science", 7, "aditya.joshi@email.com", "9876543218", 94.4),
             ("Meera Iyer", "CE102", "Civil", 2, "meera.iyer@email.com", "9876543219", 73.9),
         ]
-        cursor.executemany("""
+        cursor.executemany(
+            """
             INSERT INTO students (name, roll_no, branch, semester, email, phone, marks)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, sample_students)
+            """,
+            sample_students,
+        )
 
     conn.commit()
     conn.close()
+
+
+def normalize_required_text(value, field_name, max_length=None):
+    if value is None:
+        raise ValueError(f"{field_name} is required.")
+
+    text = " ".join(str(value).split()).strip()
+    if not text:
+        raise ValueError(f"{field_name} is required.")
+    if max_length and len(text) > max_length:
+        raise ValueError(f"{field_name} must be {max_length} characters or fewer.")
+    return text
+
+
+def validate_student_payload(form_data, student_id=None):
+    name = normalize_required_text(form_data.get("name"), "Name", 100)
+    roll_no = normalize_required_text(form_data.get("roll_no"), "Roll number", 30).upper()
+
+    branch = normalize_required_text(form_data.get("branch"), "Branch").strip()
+    if branch not in VALID_BRANCHES:
+        raise ValueError("Please select a valid branch.")
+
+    try:
+        semester = int(form_data.get("semester", ""))
+    except (TypeError, ValueError):
+        raise ValueError("Semester must be a number from 1 to 8.") from None
+
+    if semester < 1 or semester > 8:
+        raise ValueError("Semester must be a number from 1 to 8.")
+
+    email = (form_data.get("email") or "").strip()
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        raise ValueError("Please enter a valid email address.")
+
+    phone = (form_data.get("phone") or "").strip()
+    if phone:
+        digits = re.sub(r"\D", "", phone)
+        if len(digits) < 7 or len(digits) > 15:
+            raise ValueError("Phone number must contain 7 to 15 digits.")
+        phone = digits
+
+    try:
+        marks = float(form_data.get("marks", ""))
+    except (TypeError, ValueError):
+        raise ValueError("Marks must be a valid number between 0 and 100.") from None
+
+    if marks < 0 or marks > 100:
+        raise ValueError("Marks must be between 0 and 100.")
+
+    duplicate_query = "SELECT id FROM students WHERE roll_no = ? AND id != ?"
+    conn = get_db_connection()
+    existing = conn.execute(duplicate_query, (roll_no, student_id or -1)).fetchone()
+    conn.close()
+    if existing:
+        raise ValueError("Roll number already exists.")
+
+    return {
+        "name": name,
+        "roll_no": roll_no,
+        "branch": branch,
+        "semester": semester,
+        "email": email,
+        "phone": phone,
+        "marks": round(marks, 2),
+    }
+
+
+def fetch_student(student_id):
+    conn = get_db_connection()
+    student = conn.execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+    conn.close()
+    return student
 
 
 # ---------------------------------------------------------
@@ -72,67 +157,115 @@ def index():
     conn = get_db_connection()
     students = conn.execute("SELECT * FROM students ORDER BY id").fetchall()
     conn.close()
-    return render_template("index.html", students=students)
+    return render_template("index.html", students=students, valid_branches=VALID_BRANCHES)
 
 
 @app.route("/add", methods=["GET", "POST"])
 def add_student():
     if request.method == "POST":
-        name = request.form["name"]
-        roll_no = request.form["roll_no"]
-        branch = request.form["branch"]
-        semester = request.form["semester"]
-        email = request.form["email"]
-        phone = request.form["phone"]
-        marks = request.form["marks"]
+        form_data = request.form.to_dict()
+        try:
+            student_data = validate_student_payload(form_data)
+        except ValueError as exc:
+            return render_template("add.html", error=str(exc), form_data=form_data, valid_branches=VALID_BRANCHES)
 
         conn = get_db_connection()
         try:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT INTO students (name, roll_no, branch, semester, email, phone, marks)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (name, roll_no, branch, semester, email, phone, marks))
+                """,
+                (
+                    student_data["name"],
+                    student_data["roll_no"],
+                    student_data["branch"],
+                    student_data["semester"],
+                    student_data["email"],
+                    student_data["phone"],
+                    student_data["marks"],
+                ),
+            )
             conn.commit()
         except sqlite3.IntegrityError:
+            conn.rollback()
+            return render_template(
+                "add.html",
+                error="Roll number already exists.",
+                form_data=form_data,
+                valid_branches=VALID_BRANCHES,
+            )
+        finally:
             conn.close()
-            return render_template("add.html", error="Roll number already exists!")
-        conn.close()
+
         return redirect(url_for("index"))
 
-    return render_template("add.html")
+    return render_template("add.html", valid_branches=VALID_BRANCHES)
 
 
 @app.route("/edit/<int:student_id>", methods=["GET", "POST"])
 def edit_student(student_id):
-    conn = get_db_connection()
+    student = fetch_student(student_id)
+    if student is None:
+        abort(404)
 
     if request.method == "POST":
-        name = request.form["name"]
-        roll_no = request.form["roll_no"]
-        branch = request.form["branch"]
-        semester = request.form["semester"]
-        email = request.form["email"]
-        phone = request.form["phone"]
-        marks = request.form["marks"]
+        form_data = request.form.to_dict()
+        try:
+            student_data = validate_student_payload(form_data, student_id=student_id)
+        except ValueError as exc:
+            return render_template(
+                "edit.html",
+                student=dict(student),
+                error=str(exc),
+                form_data=form_data,
+                valid_branches=VALID_BRANCHES,
+            )
 
-        conn.execute("""
-            UPDATE students
-            SET name=?, roll_no=?, branch=?, semester=?, email=?, phone=?, marks=?
-            WHERE id=?
-        """, (name, roll_no, branch, semester, email, phone, marks, student_id))
-        conn.commit()
-        conn.close()
+        conn = get_db_connection()
+        try:
+            conn.execute(
+                """
+                UPDATE students
+                SET name=?, roll_no=?, branch=?, semester=?, email=?, phone=?, marks=?
+                WHERE id=?
+                """,
+                (
+                    student_data["name"],
+                    student_data["roll_no"],
+                    student_data["branch"],
+                    student_data["semester"],
+                    student_data["email"],
+                    student_data["phone"],
+                    student_data["marks"],
+                    student_id,
+                ),
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            conn.rollback()
+            return render_template(
+                "edit.html",
+                student=dict(student),
+                error="Roll number already exists.",
+                form_data=form_data,
+                valid_branches=VALID_BRANCHES,
+            )
+        finally:
+            conn.close()
+
         return redirect(url_for("index"))
 
-    student = conn.execute("SELECT * FROM students WHERE id=?", (student_id,)).fetchone()
-    conn.close()
-    return render_template("edit.html", student=student)
+    return render_template("edit.html", student=student, valid_branches=VALID_BRANCHES)
 
 
 @app.route("/delete/<int:student_id>")
 def delete_student(student_id):
+    if fetch_student(student_id) is None:
+        abort(404)
+
     conn = get_db_connection()
-    conn.execute("DELETE FROM students WHERE id=?", (student_id,))
+    conn.execute("DELETE FROM students WHERE id = ?", (student_id,))
     conn.commit()
     conn.close()
     return redirect(url_for("index"))
@@ -140,10 +273,15 @@ def delete_student(student_id):
 
 @app.route("/view/<int:student_id>")
 def view_student(student_id):
-    conn = get_db_connection()
-    student = conn.execute("SELECT * FROM students WHERE id=?", (student_id,)).fetchone()
-    conn.close()
+    student = fetch_student(student_id)
+    if student is None:
+        abort(404)
     return render_template("view.html", student=student)
+
+
+@app.errorhandler(404)
+def not_found(_error):
+    return render_template("404.html"), 404
 
 
 # ---------------------------------------------------------
@@ -161,11 +299,14 @@ def api_students():
 def api_search():
     query = request.args.get("q", "").strip()
     conn = get_db_connection()
-    students = conn.execute("""
+    students = conn.execute(
+        """
         SELECT * FROM students
         WHERE name LIKE ? OR roll_no LIKE ? OR branch LIKE ?
         ORDER BY id
-    """, (f"%{query}%", f"%{query}%", f"%{query}%")).fetchall()
+        """,
+        (f"%{query}%", f"%{query}%", f"%{query}%"),
+    ).fetchall()
     conn.close()
     return jsonify([dict(s) for s in students])
 
@@ -175,15 +316,19 @@ def api_stats():
     conn = get_db_connection()
     total = conn.execute("SELECT COUNT(*) FROM students").fetchone()[0]
     avg_marks = conn.execute("SELECT AVG(marks) FROM students").fetchone()[0]
-    branch_counts = conn.execute("""
+    branch_counts = conn.execute(
+        """
         SELECT branch, COUNT(*) as count FROM students GROUP BY branch
-    """).fetchall()
+        """
+    ).fetchall()
     conn.close()
-    return jsonify({
-        "total": total,
-        "avg_marks": round(avg_marks, 2) if avg_marks else 0,
-        "branch_counts": [dict(b) for b in branch_counts]
-    })
+    return jsonify(
+        {
+            "total": total,
+            "avg_marks": round(avg_marks, 2) if avg_marks is not None else 0,
+            "branch_counts": [dict(b) for b in branch_counts],
+        }
+    )
 
 
 if __name__ == "__main__":

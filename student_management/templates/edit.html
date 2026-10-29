@@ -4,44 +4,48 @@
 {% block content %}
 <h1 class="page-title">Edit Student</h1>
 
-<form class="student-form" method="POST" action="{{ url_for('edit_student', student_id=student.id) }}">
+{% if error %}
+<div class="alert alert-error" role="alert">{{ error }}</div>
+{% endif %}
+
+<form class="student-form" method="POST" action="{{ url_for('edit_student', student_id=student.id) }}" id="studentForm" novalidate>
     <div class="form-group">
         <label for="name">Full Name</label>
-        <input type="text" id="name" name="name" value="{{ student.name }}" required>
+        <input type="text" id="name" name="name" value="{{ (form_data or {}).get('name', student.name) }}" required>
     </div>
 
     <div class="form-group">
         <label for="roll_no">Roll Number</label>
-        <input type="text" id="roll_no" name="roll_no" value="{{ student.roll_no }}" required>
+        <input type="text" id="roll_no" name="roll_no" value="{{ (form_data or {}).get('roll_no', student.roll_no) }}" required>
     </div>
 
     <div class="form-group">
         <label for="branch">Branch</label>
         <select id="branch" name="branch" required>
-            {% for b in ["Computer Science", "Electronics", "Mechanical", "Civil", "Electrical"] %}
-            <option value="{{ b }}" {% if student.branch == b %}selected{% endif %}>{{ b }}</option>
+            {% for branch in valid_branches %}
+            <option value="{{ branch }}" {% if (form_data or {}).get('branch', student.branch) == branch %}selected{% endif %}>{{ branch }}</option>
             {% endfor %}
         </select>
     </div>
 
     <div class="form-group">
         <label for="semester">Semester</label>
-        <input type="number" id="semester" name="semester" min="1" max="8" value="{{ student.semester }}" required>
+        <input type="number" id="semester" name="semester" min="1" max="8" value="{{ (form_data or {}).get('semester', student.semester) }}" required>
     </div>
 
     <div class="form-group">
         <label for="email">Email</label>
-        <input type="email" id="email" name="email" value="{{ student.email }}">
+        <input type="email" id="email" name="email" value="{{ (form_data or {}).get('email', student.email) }}">
     </div>
 
     <div class="form-group">
         <label for="phone">Phone</label>
-        <input type="text" id="phone" name="phone" value="{{ student.phone }}">
+        <input type="text" id="phone" name="phone" value="{{ (form_data or {}).get('phone', student.phone) }}" inputmode="numeric">
     </div>
 
     <div class="form-group">
         <label for="marks">Marks (%)</label>
-        <input type="number" id="marks" name="marks" min="0" max="100" step="0.1" value="{{ student.marks }}" required>
+        <input type="number" id="marks" name="marks" min="0" max="100" step="0.1" value="{{ (form_data or {}).get('marks', student.marks) }}" required>
     </div>
 
     <div class="form-actions">
@@ -49,4 +53,22 @@
         <a href="{{ url_for('index') }}" class="btn btn-cancel">Cancel</a>
     </div>
 </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById("studentForm").addEventListener("submit", function (event) {
+        const marksInput = document.getElementById("marks");
+        const marks = Number.parseFloat(marksInput.value);
+
+        if (!Number.isFinite(marks) || marks < 0 || marks > 100) {
+            event.preventDefault();
+            marksInput.setCustomValidity("Marks must be between 0 and 100.");
+            marksInput.reportValidity();
+            return;
+        }
+
+        marksInput.setCustomValidity("");
+    });
+</script>
 {% endblock %}

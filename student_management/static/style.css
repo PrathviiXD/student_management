@@ -9,13 +9,18 @@
     --text: #1f2330;
     --muted: #6b7280;
     --border: #e5e7eb;
+    --shadow: rgba(15, 23, 42, 0.08);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+a, button, input, select {
+    font: inherit;
+}
+
 body {
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
+    background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 120px);
     color: var(--text);
     min-height: 100vh;
     display: flex;
@@ -24,8 +29,9 @@ body {
 
 /* Navbar */
 .navbar {
-    background: var(--primary);
+    background: linear-gradient(135deg, var(--primary), #6d5efc);
     padding: 14px 0;
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.15);
 }
 .nav-container {
     max-width: 1100px;
@@ -41,10 +47,14 @@ body {
     font-weight: 700;
     text-decoration: none;
 }
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
 .nav-links a {
     color: #e0e7ff;
     text-decoration: none;
-    margin-left: 20px;
     font-weight: 500;
 }
 .nav-links a:hover { color: #fff; }
@@ -73,12 +83,12 @@ body {
 }
 .stat-card {
     background: var(--card-bg);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 18px 24px;
     flex: 1;
     min-width: 150px;
     text-align: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 25px var(--shadow);
 }
 .stat-number {
     display: block;
@@ -109,10 +119,12 @@ body {
     border: 1px solid var(--border);
     border-radius: 8px;
     font-size: 0.95rem;
+    background: #fff;
 }
 #searchBox:focus {
     outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
 
 /* Buttons */
@@ -125,8 +137,9 @@ body {
     font-weight: 600;
     border: none;
     cursor: pointer;
-    transition: 0.15s;
+    transition: transform 0.15s ease, background-color 0.15s ease;
 }
+.btn:hover { transform: translateY(-1px); }
 .btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-cancel { background: #e5e7eb; color: #374151; }
@@ -139,9 +152,9 @@ body {
 /* Table */
 .table-wrapper {
     background: var(--card-bg);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow-x: auto;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 25px var(--shadow);
 }
 .student-table {
     width: 100%;
@@ -186,8 +199,8 @@ body {
     background: var(--card-bg);
     max-width: 520px;
     padding: 28px;
-    border-radius: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px var(--shadow);
 }
 .form-group { margin-bottom: 16px; }
 .form-group label {
@@ -203,10 +216,12 @@ body {
     border: 1px solid var(--border);
     border-radius: 7px;
     font-size: 0.95rem;
+    background: #fff;
 }
 .form-group input:focus, .form-group select:focus {
     outline: none;
     border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
 .form-actions { margin-top: 20px; display: flex; gap: 10px; }
 
@@ -223,8 +238,8 @@ body {
     background: var(--card-bg);
     max-width: 480px;
     padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px var(--shadow);
     text-align: center;
 }
 .profile-avatar {
@@ -249,6 +264,24 @@ body {
 }
 .profile-field { font-size: 0.95rem; padding: 6px 0; border-bottom: 1px solid var(--border); }
 
+.empty-state, .not-found-card {
+    max-width: 520px;
+    margin: 40px auto;
+    text-align: center;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px var(--shadow);
+    padding: 40px 24px;
+}
+.empty-state h1, .not-found-card h1 {
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+}
+.empty-state p, .not-found-card p {
+    color: var(--muted);
+    margin-bottom: 20px;
+}
+
 /* Footer */
 .footer {
     text-align: center;
@@ -260,4 +293,7 @@ body {
 @media (max-width: 600px) {
     .stats-row { flex-direction: column; }
     .toolbar { flex-direction: column; align-items: stretch; }
+    .nav-container { flex-direction: column; gap: 12px; }
+    .form-actions { flex-direction: column; }
+    .btn { width: 100%; text-align: center; }
 }
